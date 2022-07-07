@@ -20,7 +20,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Archive Docker Image
-          command: docker build --tag "${IMAGE_TAG}"
+          command: docker build --tag "${IMAGE_TAG}" .
       - run:
           name: Archive Docker Image
           command: docker save --output image.tar "${IMAGE_TAG}"
