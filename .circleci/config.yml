@@ -4,6 +4,9 @@ parameters:
   first-deploy:
     type: boolean
     default: true
+  update:
+    type: boolean
+    default: false
 
 executors:
   docker-publisher:
@@ -87,6 +90,7 @@ workflows:
             - push
   
   build-push-update-deploy:
+    when: << pipeline.parameters.update >>
     jobs:
       - build
       - push:
