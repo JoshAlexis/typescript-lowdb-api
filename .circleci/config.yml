@@ -8,7 +8,7 @@ parameters:
 executors:
   docker-publisher:
     environment:
-      IMAGE_TAG: joshyelcg/lowdb-api:$CIRCLE_SHA1
+      IMAGE_TAG: joshyelcg/lowdb-api
     docker:
       - image: docker:stable
 
@@ -19,11 +19,11 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Archive Docker Image
-          command: docker build --tag "${IMAGE_TAG}" .
+          name: Build Docker Image
+          command: docker build --tag "${IMAGE_TAG}:${CIRCLE_SHA1}" .
       - run:
           name: Archive Docker Image
-          command: docker save --output image.tar "${IMAGE_TAG}"
+          command: docker save --output image.tar "${IMAGE_TAG}:${CIRCLE_SHA1}"
       - persist_to_workspace:
           root: .
           paths:
@@ -41,7 +41,7 @@ jobs:
           name: Publish Docker Image
           command: |
             echo "${DOCKERHUB_PASS}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-            docker push "${IMAGE_TAG}"
+            docker push "${IMAGE_TAG}:${CIRCLE_SHA1}"
   first-deploy:
     environment:
       IMAGE_TAG:
@@ -54,7 +54,7 @@ jobs:
       - run:
           name: Deploy Over SSH
           command: |
-            ssh $SSH_USER@$SSH_HOST "docker service create ${IMAGE_TAG} lowdb-api --env PORT=${PORT}"
+            ssh $SSH_USER@$SSH_HOST "docker service create ${IMAGE_TAG}:${CIRCLE_SHA1} lowdb-api --env PORT=${PORT}"
   
   deploy:
     environment:
@@ -68,7 +68,7 @@ jobs:
       - run:
           name: Deploy Over SSH
           command: |
-            ssh $SSH_USER@$SSH_HOST "docker service update lowdb-api --image ${IMAGE_TAG}"
+            ssh $SSH_USER@$SSH_HOST "docker service update lowdb-api --image ${IMAGE_TAG}:${CIRCLE_SHA1}"
 
 workflows:
   version: 2
