@@ -13,20 +13,21 @@ executors:
       - image: docker:stable
 
 jobs:
-  executor: docker-publisher
-  steps:
-    - checkout
-    - setup_remote_docker
-    - run:
-        name: Archive Docker Image
-        command: docker build --tag "${IMAGE_TAG}"
-    - run:
-        name: Archive Docker Image
-        command: docker save --output image.tar "${IMAGE_TAG}"
-    - persist_to_workspace:
-        root: .
-        paths:
-          - "./image.tar"
+  build:
+    executor: docker-publisher
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Archive Docker Image
+          command: docker build --tag "${IMAGE_TAG}"
+      - run:
+          name: Archive Docker Image
+          command: docker save --output image.tar "${IMAGE_TAG}"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "./image.tar"
   push:
     executor: docker-publisher
     steps:
@@ -49,7 +50,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            
+            - b6:78:ac:c7:1e:e9:ec:28:6c:41:9a:30:29:7e:e8:3a
       - run:
           name: Deploy Over SSH
           command: |
@@ -63,7 +64,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            
+            - "b6:78:ac:c7:1e:e9:ec:28:6c:41:9a:30:29:7e:e8:3a"
       - run:
           name: Deploy Over SSH
           command: |
