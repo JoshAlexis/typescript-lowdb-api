@@ -13,7 +13,7 @@ executors:
     environment:
       IMAGE_TAG: joshyelcg/lowdb-api
     docker:
-      - image: docker:stable
+      - image: docker:20.10.14
 
 jobs:
   build:
