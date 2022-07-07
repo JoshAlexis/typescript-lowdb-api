@@ -1,0 +1,99 @@
+version: 2.1
+
+parameters:
+  first-deploy:
+    type: boolean
+    default: true
+
+executors:
+  docker-publisher:
+    environment:
+      IMAGE_TAG: joshyelcg/lowdb-api:$CIRCLE_SHA1
+    docker:
+      - image: docker:stable
+
+jobs:
+  executor: docker-publisher
+  steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: Archive Docker Image
+        command: docker build --tag "${IMAGE_TAG}"
+    - run:
+        name: Archive Docker Image
+        command: docker save --output image.tar "${IMAGE_TAG}"
+    - persist_to_workspace:
+        root: .
+        paths:
+          - "./image.tar"
+  push:
+    executor: docker-publisher
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Load Docker Image
+          command: docker load --input /tmp/workspace/image.tar
+      - run:
+          name: Publish Docker Image
+          command: |
+            echo "${DOCKERHUB_PASS}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+            docker push "${IMAGE_TAG}"
+  first-deploy:
+    environment:
+      IMAGE_TAG:
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            
+      - run:
+          name: Deploy Over SSH
+          command: |
+            ssh $SSH_USER@$SSH_HOST "docker service create ${IMAGE_TAG} lowdb-api --env PORT=${PORT}"
+  
+  deploy:
+    environment:
+      IMAGE_TAG:
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            
+      - run:
+          name: Deploy Over SSH
+          command: |
+            ssh $SSH_USER@$SSH_HOST "docker service update lowdb-api --image ${IMAGE_TAG}"
+
+workflows:
+  version: 2
+  build-push-first-deploy:
+    when: << pipeline.parameters.first-deploy >>
+    jobs:
+      - build
+      - push:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
+      - first-deploy:
+          requires:
+            - push
+  
+  build-push-update-deploy:
+    jobs:
+      - build
+      - push:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
+      - deploy:
+          requires:
+            - push
