@@ -3,7 +3,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json ./
 COPY yarn.lock ./
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 FROM node:16-alpine AS builder
 WORKDIR /app
@@ -17,7 +17,7 @@ WORKDIR /app
 ENV NODE_ENV production
 COPY package.json ./
 COPY yarn.lock ./
-RUN yarn install --frozen-lockfile --production=true
+RUN yarn install --production --ignore-scripts --prefer-offline
 
 FROM node:16-alpine AS production
 WORKDIR /app
@@ -30,7 +30,6 @@ RUN adduser --system --uid 1001 nodejs
 COPY --from=builder --chown=nodejs:nodejs /app/build ./build
 COPY --from=production-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY package.json ./
-COPY yarn.lock ./
 
 USER nodejs
 
