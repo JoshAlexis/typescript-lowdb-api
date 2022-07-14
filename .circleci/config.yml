@@ -60,8 +60,9 @@ jobs:
                 name: Deploy Over SSH
                 command: |
                   ssh $SSH_USER@$SSH_HOST "docker service create \
-                    --name lowdb-api << pipeline.parameters.image-name >>:${CIRCLE_SHA1} \
-                    --env PORT=${PORT}"
+                    --name lowdb-api \
+                    --env PORT=${PORT} \
+                    << pipeline.parameters.image-name >>:${CIRCLE_SHA1}"
       - when:
           condition:
             equal: [update, << pipeline.parameters.deploy-update >>]
