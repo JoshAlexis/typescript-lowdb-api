@@ -1,32 +1,34 @@
 version: 2.1
 
 parameters:
-  first-deploy:
-    type: boolean
-    default: true
-  update:
-    type: boolean
-    default: false
+  deploy-update:
+    type: string
+    default: deploy
+  image-name:
+    type: string
+    default: joshyelcg/lowdb-api
 
 executors:
+  machine-executor:
+    machine:
+      image: ubuntu-2004:202010-01
   docker-publisher:
-    environment:
-      IMAGE_TAG: joshyelcg/lowdb-api
     docker:
-      - image: docker:20.10.14
+      - image: cimg/base:2021.04
 
 jobs:
   build:
     executor: docker-publisher
     steps:
       - checkout
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 20.10.14
       - run:
           name: Build Docker Image
-          command: docker build --tag "${IMAGE_TAG}:${CIRCLE_SHA1}" .
+          command: docker build --tag "<< pipeline.parameters.image-name >>:${CIRCLE_SHA1}" .
       - run:
           name: Archive Docker Image
-          command: docker save --output image.tar "${IMAGE_TAG}:${CIRCLE_SHA1}"
+          command: docker save --output image.tar "<< pipeline.parameters.image-name >>:${CIRCLE_SHA1}"
       - persist_to_workspace:
           root: .
           paths:
@@ -44,39 +46,35 @@ jobs:
           name: Publish Docker Image
           command: |
             echo "${DOCKERHUB_PASS}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
-            docker push "${IMAGE_TAG}:${CIRCLE_SHA1}"
-  first-deploy:
-    environment:
-      IMAGE_TAG:
-    machine:
-      image: ubuntu-2004:202010-01
-    steps:
-      - add_ssh_keys:
-          fingerprints:
-            - b6:78:ac:c7:1e:e9:ec:28:6c:41:9a:30:29:7e:e8:3a
-      - run:
-          name: Deploy Over SSH
-          command: |
-            ssh $SSH_USER@$SSH_HOST "docker service create ${IMAGE_TAG}:${CIRCLE_SHA1} lowdb-api --env PORT=${PORT}"
-  
+            docker push "<< pipeline.parameters.image-name >>:${CIRCLE_SHA1}"
+
   deploy:
-    environment:
-      IMAGE_TAG:
-    machine:
-      image: ubuntu-2004:202010-01
+    executor: machine-executor
     steps:
       - add_ssh_keys:
-          fingerprints:
-            - "b6:78:ac:c7:1e:e9:ec:28:6c:41:9a:30:29:7e:e8:3a"
-      - run:
-          name: Deploy Over SSH
-          command: |
-            ssh $SSH_USER@$SSH_HOST "docker service update lowdb-api --image ${IMAGE_TAG}:${CIRCLE_SHA1}"
+      - when:
+          condition:
+            equal: [deploy, << pipeline.parameters.deploy-update >>]
+          steps:
+            - run:
+                name: Deploy Over SSH
+                command: |
+                  ssh $SSH_USER@$SSH_HOST "docker service create \
+                    --name lowdb-api << pipeline.parameters.image-name >>:${CIRCLE_SHA1} \
+                    --env PORT=${PORT}"
+      - when:
+          condition:
+            equal: [update, << pipeline.parameters.deploy-update >>]
+          steps:
+            - run:
+                name: Deploy Over SSH
+                command: |
+                  ssh $SSH_USER@$SSH_HOST "docker service update \ 
+                    --image << pipeline.parameters.image-name >>:${CIRCLE_SHA1} lowdb-api"
 
 workflows:
   version: 2
-  build-push-first-deploy:
-    when: << pipeline.parameters.first-deploy >>
+  build-push-deploy:
     jobs:
       - build
       - push:
@@ -86,19 +84,5 @@ workflows:
             branches:
               only: main
       - first-deploy:
-          requires:
-            - push
-  
-  build-push-update-deploy:
-    when: << pipeline.parameters.update >>
-    jobs:
-      - build
-      - push:
-          requires:
-            - build
-          filters:
-            branches:
-              only: main
-      - deploy:
           requires:
             - push
