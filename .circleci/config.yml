@@ -51,7 +51,7 @@ jobs:
   deploy:
     executor: machine-executor
     steps:
-      - add_ssh_keys:
+      - add_ssh_keys
       - when:
           condition:
             equal: [deploy, << pipeline.parameters.deploy-update >>]
@@ -83,6 +83,6 @@ workflows:
           filters:
             branches:
               only: main
-      - first-deploy:
+      - deploy:
           requires:
             - push
